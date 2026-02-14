@@ -3,14 +3,6 @@
  * All env vars prefixed with VITE_ are exposed to the client.
  */
 
-const getEnv = (key: string): string => {
-  const value = import.meta.env[key]
-  if (value == null || value === '') {
-    throw new Error(`Missing required env: ${key}`)
-  }
-  return value
-}
-
 export const apiConfig = {
   /** Google API key (restrict to Sheets API in Google Cloud Console). */
   googleApiKey: import.meta.env.VITE_GOOGLE_API_KEY ?? '',

@@ -1,3 +1,10 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  body {
+    @apply antialiased;
+    font-family: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
+  }
+}

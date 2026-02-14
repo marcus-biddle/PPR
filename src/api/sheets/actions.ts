@@ -47,9 +47,10 @@ export async function getSheetValuesBatch(
   ranges: string[],
   majorDimension: 'ROWS' | 'COLUMNS' = 'ROWS'
 ): Promise<ValuesBatchGetResponse> {
-  const query = ranges.map((r) => `ranges=${encodeURIComponent(r)}`).join('&')
+  // API path is values:batchGet (colon), not values/batchGet
+  const rangeParams = ranges.map((r) => `ranges=${encodeURIComponent(r)}`).join('&')
   return sheetsGet<ValuesBatchGetResponse>(
-    `${VALUES_PREFIX}/batchGet?${query}&majorDimension=${majorDimension}`
+    `${VALUES_PREFIX}:batchGet?${rangeParams}&majorDimension=${majorDimension}`
   )
 }
 

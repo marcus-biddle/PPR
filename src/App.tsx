@@ -5,13 +5,16 @@ function App() {
   const configured = hasSheetsConfig()
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
-      <header className="border-b border-slate-200 bg-white px-6 py-4 shadow-sm">
-        <h1 className="text-xl font-semibold tracking-tight">
-          PPR – Google Sheets
+    <div className="min-h-screen bg-slate-100 text-slate-900">
+      <header className="border-b border-slate-200 bg-white px-6 py-5 shadow-sm">
+        <h1 className="text-2xl font-semibold tracking-tight text-slate-800">
+          PPR Sheets
         </h1>
+        <p className="mt-0.5 text-sm text-slate-500">
+          View and manage your Push-ups, Pull-ups & Run data
+        </p>
       </header>
-      <main className="mx-auto max-w-3xl px-6 py-8">
+      <main className="mx-auto max-w-4xl px-4 py-8 sm:px-6">
         {configured ? (
           <SheetDemo />
         ) : (

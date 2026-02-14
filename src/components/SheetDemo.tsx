@@ -562,15 +562,7 @@ export function SheetDemo() {
                   }, 0)
                   const workingDays = filteredData.filter((row) => isWorkingValue(row.value)).length
                   const { longestStreak, longestTimeOff } = getStreaks(filteredData)
-                  const parsedDates = filteredData
-                    .map((row) => parseDateCell(row.date))
-                    .filter((d): d is Date => d != null)
-                  const firstDate = parsedDates.length > 0 ? new Date(Math.min(...parsedDates.map((d) => d.getTime()))) : null
                   const today = new Date()
-                  const totalDays =
-                    firstDate != null
-                      ? Math.max(0, Math.floor((today.getTime() - firstDate.getTime()) / (86400 * 1000)) + 1)
-                      : 0
                   const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
                   const currentYear = today.getFullYear()
@@ -583,7 +575,6 @@ export function SheetDemo() {
                   }, 0)
                   const lastYearWorkingDays = lastYearRows.filter((row) => isWorkingValue(row.value)).length
                   const lastYearStreaks = getStreaks(lastYearRows)
-                  const lastYearTotalDays = dayOfYear
 
                   const statCards = [
                     {

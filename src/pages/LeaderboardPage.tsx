@@ -101,7 +101,7 @@ export function LeaderboardPage() {
                     color: '#fafafa',
                     fontSize: 12,
                   }}
-                  formatter={(value: number) => [value.toLocaleString(), 'Count']}
+                  formatter={(value: number | undefined) => [value != null ? value.toLocaleString() : '—', 'Count']}
                   labelFormatter={(_, payload) => payload[0]?.payload?.name ?? ''}
                   cursor={{ fill: 'rgba(0,0,0,0.05)' }}
                   isAnimationActive={false}

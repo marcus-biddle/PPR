@@ -16,7 +16,7 @@ const totalsCache = new Map<number, MedalCount[]>()
 export function useMedalTotals(
   year: number,
   sheetNames: readonly SheetName[]
-): { totals: MedalCount[]; loading: boolean; error: string | null; loadTotals: () => void } {
+): { totals: MedalCount[]; loading: boolean; error: string | null; loadTotals: () => void; hasDataForYear: boolean } {
   const [totals, setTotals] = useState<MedalCount[]>(() => totalsCache.get(year) ?? [])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)

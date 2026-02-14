@@ -53,14 +53,14 @@ export async function fetchLeaderboardForMonth(
     ]
     const res = await getSheetValuesBatch(ranges)
     const vr = res.valueRanges
-    const vr0 = (vr != null && Array.isArray(vr) && vr[0] != null) ? vr[0] : {}
+    const vr0 = (vr != null && Array.isArray(vr) && vr[0] != null) ? vr[0] : { range: '', values: [] }
     const dateRows = getValuesArray(vr0)
     const maxLen = dateRows.length
     for (let i = 0; i < maxLen; i++) {
       allDateRows.push(dateRows[i] ?? [])
     }
     for (let nameIdx = 0; nameIdx < names.length; nameIdx++) {
-      const vri = (vr != null && Array.isArray(vr) ? vr[nameIdx + 1] : null) || {}
+      const vri = (vr != null && Array.isArray(vr) ? vr[nameIdx + 1] : null) ?? { range: '', values: [] }
       const valueRows = getValuesArray(vri)
       for (let i = 0; i < maxLen; i++) {
         allValueRowsByIndex[nameIdx].push(valueRows[i] ?? [])
@@ -160,14 +160,14 @@ export function useLeaderboardData(
       return getSheetValuesBatch(ranges).then((res) => {
         if (cancelled) return
         const vr = res.valueRanges
-        const vr0 = (vr != null && Array.isArray(vr) ? vr[0] : null) || {}
+        const vr0 = (vr != null && Array.isArray(vr) ? vr[0] : null) ?? { range: '', values: [] }
         const dateRows = getValuesArray(vr0)
         const maxLen = dateRows.length
         for (let i = 0; i < maxLen; i++) {
           allDateRows.push(dateRows[i] ?? [])
         }
         for (let nameIdx = 0; nameIdx < names.length; nameIdx++) {
-          const vri = (vr != null && Array.isArray(vr) ? vr[nameIdx + 1] : null) || {}
+          const vri = (vr != null && Array.isArray(vr) ? vr[nameIdx + 1] : null) ?? { range: '', values: [] }
           const valueRows = getValuesArray(vri)
           for (let i = 0; i < maxLen; i++) {
             allValueRowsByIndex[nameIdx].push(valueRows[i] ?? [])

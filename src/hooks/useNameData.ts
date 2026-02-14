@@ -37,26 +37,6 @@ function getQuarter(month: number): number {
   return Math.ceil(month / 3)
 }
 
-/** Day of year 1–366. */
-export function getDayOfYear(d: Date): number {
-  const start = new Date(d.getFullYear(), 0, 0)
-  const diff = d.getTime() - start.getTime()
-  return Math.floor(diff / (86400 * 1000))
-}
-
-/** Filter rows to a given year, up to and including the same day-of-year (for YTD comparison). */
-export function filterByYTDPeriod(
-  rows: DateValueRow[],
-  year: number,
-  upToDayOfYear: number
-): DateValueRow[] {
-  return rows.filter((row) => {
-    const d = parseDateCell(row.date)
-    if (!d || d.getFullYear() !== year) return false
-    return getDayOfYear(d) <= upToDayOfYear
-  })
-}
-
 /** Filter rows by optional year, quarter, month. Empty string = no filter for that dimension. */
 export function filterByDate(
   rows: DateValueRow[],
@@ -151,8 +131,8 @@ export function useNameData(
 
       return getSheetValuesBatch([datesRange, valuesRange]).then((res) => {
         if (cancelled) return
-        const dateRows = getValuesArray(res.valueRanges[0] ?? {})
-        const valueRows = getValuesArray(res.valueRanges[1] ?? {})
+        const dateRows = getValuesArray(res.valueRanges[0] ?? { range: '', values: [] })
+        const valueRows = getValuesArray(res.valueRanges[1] ?? { range: '', values: [] })
         const maxLen = Math.max(dateRows.length, valueRows.length)
         for (let i = 0; i < maxLen; i++) {
           allDateRows.push(dateRows[i] ?? [])

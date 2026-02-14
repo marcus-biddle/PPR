@@ -4,7 +4,7 @@
 
 @layer base {
   body {
-    @apply antialiased;
+    @apply antialiased bg-zinc-950 text-zinc-100;
     font-family: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
   }
 }

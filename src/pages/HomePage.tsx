@@ -398,6 +398,10 @@ export function HomePage() {
                 const gap = monthlyGoal - totalCount
                 if (gap <= 0) return null
 
+                const lastDay = new Date(currentYear, currentMonth, 0).getDate()
+                const daysRemaining = Math.max(1, lastDay - now.getDate() + 1)
+                const perDay = Math.ceil(gap / daysRemaining)
+
                 const roundToNice = (n: number): number => {
                   if (n < 10) return Math.ceil(n / 5) * 5
                   if (n < 100) return Math.ceil(n / 10) * 10
@@ -419,30 +423,54 @@ export function HomePage() {
                 }
                 milestones.sort((a, b) => a - b)
 
-                return milestones.length > 0 ? (
-                  <div className="mt-4 space-y-2">
-                    <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">
-                      Milestone plan
-                    </p>
-                    {milestones.map((target) => {
-                      const needed = Math.max(0, target - totalCount)
-                      const isGoal = target === monthlyGoal
-                      return (
-                        <div
-                          key={target}
-                          className="flex items-center justify-between rounded-lg border border-zinc-700/60 bg-zinc-800/40 px-3 py-2"
-                        >
-                          <span className="text-sm text-zinc-300">
-                            {isGoal ? `Goal (${target.toLocaleString()})` : target.toLocaleString()}
-                          </span>
-                          <span className="text-sm font-medium tabular-nums text-white">
-                            {needed > 0 ? `${needed.toLocaleString()} to go` : 'Reached'}
-                          </span>
-                        </div>
-                      )
-                    })}
+                return (
+                  <div className="mt-4 space-y-4">
+                    <div className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2.5">
+                      <p className="text-xs font-medium uppercase tracking-wider text-emerald-400/90">
+                        Daily target to reach goal
+                      </p>
+                      <p className="mt-1 text-lg font-bold tabular-nums text-white">
+                        {perDay.toLocaleString()}
+                        <span className="ml-1.5 text-sm font-normal text-zinc-400">
+                          per day
+                        </span>
+                      </p>
+                      <p className="mt-0.5 text-xs text-zinc-500">
+                        {gap.toLocaleString()} to go in {daysRemaining} day{daysRemaining === 1 ? '' : 's'}
+                      </p>
+                    </div>
+                    {milestones.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">
+                        Milestone plan · dates at {perDay}/day pace
+                      </p>
+                      {milestones.map((target) => {
+                        const needed = Math.max(0, target - totalCount)
+                        const isGoal = target === monthlyGoal
+                        const daysToReach = Math.ceil(needed / perDay)
+                        const projectedDate = new Date(now)
+                        projectedDate.setDate(projectedDate.getDate() + daysToReach)
+                        const lastDayOfMonth = new Date(currentYear, currentMonth - 1, lastDay)
+                        const cappedDate = projectedDate > lastDayOfMonth ? lastDayOfMonth : projectedDate
+                        const dateLabel = cappedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+                        return (
+                          <div
+                            key={target}
+                            className="flex items-center justify-between rounded-lg border border-zinc-700/60 bg-zinc-800/40 px-3 py-2"
+                          >
+                            <span className="text-sm text-zinc-300">
+                              {isGoal ? `Goal (${target.toLocaleString()})` : target.toLocaleString()}
+                            </span>
+                            <span className="text-sm font-medium tabular-nums text-white">
+                              by {dateLabel}
+                            </span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                    )}
                   </div>
-                ) : null
+                )
               })()}
             </>
           ) : (

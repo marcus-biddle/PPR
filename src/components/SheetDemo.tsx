@@ -604,11 +604,11 @@ export function SheetDemo() {
                     },
                     {
                       label: 'Days covered',
-                      value: `${totalDays} days`,
+                      value: `${filteredData.length} days`,
                       accent: false,
-                      percentChange: isYTD ? percentChange(totalDays, lastYearTotalDays) : null,
+                      percentChange: isYTD ? percentChange(filteredData.length, lastYearRows.length) : null,
                       higherIsBetter: true,
-                      lastYearValue: `${lastYearTotalDays} days`,
+                      lastYearValue: `${lastYearRows.length} days`,
                     },
                     {
                       label: 'Longest streak',

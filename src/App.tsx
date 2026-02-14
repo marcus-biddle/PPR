@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { Layout } from './components/Layout'
 import { HomePage } from './pages/HomePage'
+import { LeaderboardPage } from './pages/LeaderboardPage'
+import { MedalsPage } from './pages/MedalsPage'
 import { SheetDemo } from './components/SheetDemo'
 import { PickerProvider } from './contexts/PickerContext'
 import { hasSheetsConfig } from './api'
@@ -36,6 +38,14 @@ function App() {
           <Route
             index
             element={configured ? <HomePage /> : <SetupInstructions />}
+          />
+          <Route
+            path="leaderboard"
+            element={configured ? <LeaderboardPage /> : <SetupInstructions />}
+          />
+          <Route
+            path="medals"
+            element={configured ? <MedalsPage /> : <SetupInstructions />}
           />
           <Route
             path="details"

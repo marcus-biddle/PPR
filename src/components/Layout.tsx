@@ -50,6 +50,38 @@ export function Layout() {
                   <NavigationMenuItem>
                     <NavigationMenuLink asChild>
                       <NavLink
+                        to="/leaderboard"
+                        className={({ isActive }) =>
+                          cn(
+                            navigationMenuTriggerStyle(),
+                            'h-8 rounded-md bg-transparent px-3 text-sm font-medium text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white',
+                            isActive && 'bg-zinc-800 text-white hover:bg-zinc-800 hover:text-white'
+                          )
+                        }
+                      >
+                        Leaderboard
+                      </NavLink>
+                    </NavigationMenuLink>
+                  </NavigationMenuItem>
+                  <NavigationMenuItem>
+                    <NavigationMenuLink asChild>
+                      <NavLink
+                        to="/medals"
+                        className={({ isActive }) =>
+                          cn(
+                            navigationMenuTriggerStyle(),
+                            'h-8 rounded-md bg-transparent px-3 text-sm font-medium text-zinc-400 transition-colors hover:bg-zinc-800 hover:text-white',
+                            isActive && 'bg-zinc-800 text-white hover:bg-zinc-800 hover:text-white'
+                          )
+                        }
+                      >
+                        Medals
+                      </NavLink>
+                    </NavigationMenuLink>
+                  </NavigationMenuItem>
+                  <NavigationMenuItem>
+                    <NavigationMenuLink asChild>
+                      <NavLink
                         to="/details"
                         className={({ isActive }) =>
                           cn(

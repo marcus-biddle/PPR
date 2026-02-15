@@ -6,6 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { SheetName } from '@/contexts/PickerContext'
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+const EMPTY_NAMES: string[] = []
 
 function RankBadge({ rank }: { rank: number }) {
   if (rank === 1) {
@@ -53,7 +54,8 @@ export function LeaderboardPage() {
 
   // Only pass names after they've loaded for the active sheet. Otherwise we'd request
   // the new sheet with the previous sheet's name count and hit Sheets API "grid limit" errors.
-  const namesForSheet = loadingNames ? [] : names
+  // Use a stable empty array to avoid infinite re-renders ([] creates a new reference each render).
+  const namesForSheet = loadingNames ? EMPTY_NAMES : names
 
   const { leaderboard, loading, error, refresh } = useLeaderboardData(
     activeSheet,

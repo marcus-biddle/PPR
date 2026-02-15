@@ -9,6 +9,7 @@ import { Link } from 'react-router-dom'
 import { usePicker } from '@/contexts/PickerContext'
 import { useNameData, filterByDate, parseDateCell } from '@/hooks/useNameData'
 import { useLeaderboardData } from '@/hooks/useLeaderboardData'
+import { useMedalTotals } from '@/hooks/useMedalTotals'
 import {
   Carousel,
   CarouselContent,
@@ -21,7 +22,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 
 export function HomePage() {
-  const { selectedSheet, selectedName, names, SHEET_DISPLAY_NAMES } = usePicker()
+  const { selectedSheet, selectedName, names, SHEET_NAMES, SHEET_DISPLAY_NAMES } = usePicker()
   const { nameData, loading, error } = useNameData(selectedSheet, selectedName, names)
 
   const now = new Date()
@@ -56,6 +57,9 @@ export function HomePage() {
 
   const monthLabel = MONTH_NAMES[currentMonth - 1]
   const sheetLabel = selectedSheet ? SHEET_DISPLAY_NAMES[selectedSheet] : ''
+  const { totals: medalTotals, loading: medalsLoading, loadTotals: loadMedalTotals, hasDataForYear: hasMedalData } = useMedalTotals(currentYear, SHEET_NAMES)
+  const userMedal = selectedName ? medalTotals.byYear.find((m) => m.name === selectedName) : null
+
   const { leaderboard, loading: leaderboardLoading } = useLeaderboardData(
     selectedSheet,
     names,
@@ -263,6 +267,81 @@ export function HomePage() {
               </div>
             </Carousel>
           )}
+        </div>
+      )}
+
+      {/* Your medals this year (active user only) */}
+      {selectedName && (
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900/60">
+          <div className="flex items-center justify-between border-b border-zinc-700/80 px-4 py-3">
+            <h3 className="text-sm font-semibold text-zinc-300">
+              Your medals · {currentYear}
+            </h3>
+            <div className="flex items-center gap-2">
+              {!hasMedalData && (
+                <button
+                  type="button"
+                  onClick={() => loadMedalTotals()}
+                  disabled={medalsLoading}
+                  className="text-xs font-medium text-emerald-400 transition-colors hover:text-emerald-300 disabled:opacity-50"
+                >
+                  {medalsLoading ? 'Loading…' : 'Load'}
+                </button>
+              )}
+              <Link
+                to="/medals"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-700/60 hover:text-zinc-100 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:ring-offset-2 focus:ring-offset-zinc-900"
+                aria-label="View medals page"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="m9 18 6-6-6-6" />
+                </svg>
+              </Link>
+            </div>
+          </div>
+          <div className="px-4 py-4">
+            {medalsLoading ? (
+              <div className="flex items-end justify-between gap-4">
+                <div className="flex gap-6">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="flex flex-col gap-1">
+                      <div className="h-3 w-12 animate-pulse rounded bg-zinc-700/60" />
+                      <div className="h-8 w-8 animate-pulse rounded bg-zinc-700/40" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : userMedal ? (
+              <div className="flex items-end justify-between gap-4">
+                <div className="flex gap-4 sm:gap-6">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[10px] font-medium uppercase tracking-wider text-amber-400/80">Gold</span>
+                    <span className="text-2xl font-bold tabular-nums text-amber-400 sm:text-3xl">{userMedal.gold}</span>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-400">Silver</span>
+                    <span className="text-2xl font-bold tabular-nums text-zinc-300 sm:text-3xl">{userMedal.silver}</span>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <span className="text-[10px] font-medium uppercase tracking-wider text-amber-200/80">Bronze</span>
+                    <span className="text-2xl font-bold tabular-nums text-amber-200/90 sm:text-3xl">{userMedal.bronze}</span>
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Score</span>
+                  <p className="text-lg font-bold tabular-nums text-zinc-100">
+                    {userMedal.gold * 3 + userMedal.silver * 2 + userMedal.bronze}
+                  </p>
+                </div>
+              </div>
+            ) : hasMedalData ? (
+              <p className="text-sm text-zinc-500">No medals yet this year.</p>
+            ) : (
+              <p className="text-sm text-zinc-500">
+                Load medal totals to see your count.
+              </p>
+            )}
+          </div>
         </div>
       )}
 

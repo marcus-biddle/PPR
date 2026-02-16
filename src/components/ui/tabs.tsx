@@ -12,7 +12,7 @@ const tabsListVariants = cva(
     variants: {
       variant: {
         default: 'h-10 justify-center rounded-lg border border-zinc-800 bg-zinc-900/60 p-1 text-zinc-400',
-        line: 'h-10 w-full justify-start gap-6 border-b border-zinc-800 text-zinc-500',
+        line: 'h-10 min-h-[44px] w-full justify-start gap-6 border-0 bg-transparent p-0',
       },
     },
     defaultVariants: {
@@ -27,7 +27,7 @@ const tabsTriggerVariants = cva(
     variants: {
       variant: {
         default: 'rounded-md px-3 py-1.5 text-sm data-[state=active]:bg-zinc-800 data-[state=active]:text-white data-[state=active]:shadow-sm',
-        line: 'rounded-none border-b-2 border-transparent bg-transparent px-1 pb-2.5 pt-0.5 text-sm -mb-px data-[state=active]:border-emerald-500 data-[state=active]:text-white data-[state=inactive]:hover:text-zinc-300',
+        line: 'min-h-[44px] shrink-0 rounded-none border-b-2 border-transparent bg-transparent px-0 pb-3 pt-2 text-sm -mb-px data-[state=active]:border-emerald-500 data-[state=active]:text-white data-[state=inactive]:text-zinc-500 data-[state=inactive]:hover:text-zinc-300',
       },
     },
     defaultVariants: {

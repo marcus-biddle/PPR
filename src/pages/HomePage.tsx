@@ -2,8 +2,12 @@ import { type ReactNode, useEffect, useState } from 'react'
 import {
   Area,
   AreaChart,
+  Bar,
+  BarChart,
   ResponsiveContainer,
   Tooltip,
+  XAxis,
+  YAxis,
 } from 'recharts'
 import { Link } from 'react-router-dom'
 import { usePicker } from '@/contexts/PickerContext'
@@ -18,6 +22,13 @@ import {
   CarouselPrevious,
 } from '@/components/ui/carousel'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 
@@ -35,6 +46,33 @@ export function HomePage() {
     const n = Number(row.value)
     return sum + (Number.isNaN(n) ? 0 : n)
   }, 0)
+
+  // Stats: today's count, daily average this month, same day last year, average same day in previous years
+  const daysElapsedThisMonth = Math.max(1, now.getDate())
+  const dailyAvgThisMonth = totalCount / daysElapsedThisMonth
+  const thisMonth = now.getMonth()
+  const thisDay = now.getDate()
+  const todayRow = nameData.find((row) => {
+    const d = parseDateCell(row.date)
+    return d && d.getFullYear() === currentYear && d.getMonth() === thisMonth && d.getDate() === thisDay
+  })
+  const todayCount = todayRow != null ? (Number(todayRow.value) || 0) : null
+  const lastYearSameDayRow = nameData.find((row) => {
+    const d = parseDateCell(row.date)
+    return d && d.getFullYear() === currentYear - 1 && d.getMonth() === thisMonth && d.getDate() === thisDay
+  })
+  const lastYearSameDayCount = lastYearSameDayRow ? (Number(lastYearSameDayRow.value) || 0) : null
+  const previousYearsSameDayRows = nameData.filter((row) => {
+    const d = parseDateCell(row.date)
+    return d && d.getFullYear() < currentYear && d.getMonth() === thisMonth && d.getDate() === thisDay
+  })
+  const previousYearsSameDayValues = previousYearsSameDayRows
+    .map((row) => Number(row.value))
+    .filter((n) => !Number.isNaN(n))
+  const avgPreviousYearsSameDay =
+    previousYearsSameDayValues.length > 0
+      ? previousYearsSameDayValues.reduce((a, b) => a + b, 0) / previousYearsSameDayValues.length
+      : null
 
   const prevYear = currentMonth === 1 ? currentYear - 1 : currentYear
   const prevMonth = currentMonth === 1 ? 12 : currentMonth - 1
@@ -55,6 +93,45 @@ export function HomePage() {
     })
     .sort((a, b) => a.dateTime - b.dateTime)
 
+  const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+  const barDataByDay = currentMonthData.reduce<number[]>((acc, row) => {
+    const d = parseDateCell(row.date)
+    const n = Number(row.value)
+    const value = row.value.trim() === '' || Number.isNaN(n) ? 0 : n
+    if (d) {
+      const dayIndex = d.getDay()
+      acc[dayIndex] = (acc[dayIndex] ?? 0) + value
+    }
+    return acc
+  }, [])
+  const barDataTotal = DAY_NAMES.map((day, i) => ({
+    day,
+    value: barDataByDay[i] ?? 0,
+  }))
+  // Average: same month across all years (current + previous)
+  const allYearsMonthData = filterByDate(nameData, '', '', currentMonth)
+  const { sumsByDay: avgSumsByDay, countsByDay: avgCountsByDay } = allYearsMonthData.reduce<{
+    sumsByDay: number[]
+    countsByDay: number[]
+  }>(
+    (acc, row) => {
+      const d = parseDateCell(row.date)
+      const n = Number(row.value)
+      const value = row.value.trim() === '' || Number.isNaN(n) ? 0 : n
+      if (d) {
+        const dayIndex = d.getDay()
+        acc.sumsByDay[dayIndex] = (acc.sumsByDay[dayIndex] ?? 0) + value
+        acc.countsByDay[dayIndex] = (acc.countsByDay[dayIndex] ?? 0) + 1
+      }
+      return acc
+    },
+    { sumsByDay: [], countsByDay: [] }
+  )
+  const barDataAverage = DAY_NAMES.map((day, i) => ({
+    day,
+    value: (avgCountsByDay[i] ?? 0) > 0 ? (avgSumsByDay[i] ?? 0) / (avgCountsByDay[i] ?? 1) : 0,
+  }))
+
   const monthLabel = MONTH_NAMES[currentMonth - 1]
   const sheetLabel = selectedSheet ? SHEET_DISPLAY_NAMES[selectedSheet] : ''
   const { totals: medalTotals, loading: medalsLoading, loadTotals: loadMedalTotals, hasDataForYear: hasMedalData } = useMedalTotals(currentYear, SHEET_NAMES)
@@ -68,6 +145,7 @@ export function HomePage() {
   )
 
   const [carouselApi, setCarouselApi] = useState<{ scrollTo: (index: number) => void } | null>(null)
+  const [dayOfWeekMetric, setDayOfWeekMetric] = useState<'total' | 'average'>('total')
 
   const goalStorageKey = selectedSheet && selectedName
     ? `ppr-monthly-goal-${selectedSheet}-${selectedName}-${currentYear}-${currentMonth}`
@@ -185,6 +263,107 @@ export function HomePage() {
           </div>
         ) : null}
       </div>
+
+      {/* Stats — compact Robinhood-style row */}
+      {selectedSheet && selectedName && (
+        <div className="rounded-xl bg-white/[0.04] px-3 py-2.5">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
+            <div className="rounded-lg bg-white/[0.06] px-3 py-2">
+              <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Today</p>
+              <p className="mt-0.5 text-lg font-bold tabular-nums text-[#00C805]">
+                {loading ? '—' : todayCount !== null ? todayCount.toLocaleString() : '—'}
+              </p>
+            </div>
+            <div className="rounded-lg bg-white/[0.06] px-3 py-2">
+              <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Daily avg</p>
+              <p className="mt-0.5 text-lg font-bold tabular-nums text-white">
+                {loading ? '—' : dailyAvgThisMonth.toLocaleString(undefined, { maximumFractionDigits: 1 })}
+              </p>
+            </div>
+            <div className="rounded-lg bg-white/[0.06] px-3 py-2">
+              <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Same day last yr</p>
+              <p className="mt-0.5 text-lg font-bold tabular-nums text-white">
+                {loading ? '—' : lastYearSameDayCount !== null ? lastYearSameDayCount.toLocaleString() : '—'}
+              </p>
+            </div>
+            <div className="rounded-lg bg-white/[0.06] px-3 py-2">
+              <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Avg this date</p>
+              <p className="mt-0.5 text-lg font-bold tabular-nums text-white">
+                {loading ? '—' : avgPreviousYearsSameDay !== null ? avgPreviousYearsSameDay.toLocaleString(undefined, { maximumFractionDigits: 1 }) : '—'}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Bar chart: count by day of week this month */}
+      {!loading && barDataTotal.some((d) => d.value > 0) && (
+        <div className="rounded-xl border border-zinc-800 bg-zinc-900/60 px-4 py-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-sm font-semibold text-zinc-300">
+              {dayOfWeekMetric === 'total' ? 'Total' : 'Average'} count by day of week · {monthLabel}
+              {dayOfWeekMetric === 'average' && ' (all years)'}
+            </h3>
+            <Select value={dayOfWeekMetric} onValueChange={(v) => setDayOfWeekMetric(v as 'total' | 'average')}>
+              <SelectTrigger className="h-8 w-[7.5rem] border-zinc-700 bg-zinc-800/80 text-xs text-zinc-200">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent className="min-w-[8rem] border-zinc-700 bg-zinc-800 text-zinc-200">
+                <SelectItem value="total" className="text-zinc-200 focus:bg-zinc-700 focus:text-white">
+                  Total
+                </SelectItem>
+                <SelectItem value="average" className="text-zinc-200 focus:bg-zinc-700 focus:text-white">
+                  Average
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="mt-3 h-40 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={dayOfWeekMetric === 'total' ? barDataTotal : barDataAverage}
+                margin={{ top: 8, right: 8, left: 0, bottom: 0 }}
+              >
+                <XAxis
+                  dataKey="day"
+                  tick={{ fill: '#a1a1aa', fontSize: 11 }}
+                  axisLine={{ stroke: '#3f3f46' }}
+                  tickLine={false}
+                />
+                <YAxis
+                  tick={{ fill: '#a1a1aa', fontSize: 11 }}
+                  axisLine={false}
+                  tickLine={false}
+                  width={28}
+                  tickFormatter={(v) => (v >= 1000 ? `${(v / 1000).toFixed(1)}k` : String(Math.round(v)))}
+                />
+                <Tooltip
+                  contentStyle={{
+                    borderRadius: 8,
+                    border: '1px solid #27272a',
+                    backgroundColor: '#18181b',
+                    color: '#fafafa',
+                    boxShadow: '0 4px 24px rgba(0,0,0,0.5)',
+                    fontSize: 12,
+                  }}
+                  formatter={(value: unknown): [ReactNode, string] => [
+                    value != null ? (dayOfWeekMetric === 'average' ? Number(value).toLocaleString(undefined, { maximumFractionDigits: 1 }) : Number(value).toLocaleString()) : '—',
+                    dayOfWeekMetric === 'average' ? 'Avg' : 'Count',
+                  ]}
+                  cursor={{ fill: '#27272a' }}
+                  isAnimationActive={false}
+                />
+                <Bar
+                  dataKey="value"
+                  fill="#34d399"
+                  radius={[4, 4, 0, 0]}
+                  isAnimationActive={false}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      )}
 
       {/* Leaderboard: All users with monthly count, 3 per carousel slide */}
       {(leaderboardLoading || leaderboard.length > 0) && (

@@ -6,7 +6,7 @@
 const DB_NAME = 'ppr-medal-cache'
 const DB_VERSION = 2 // Bumped for byType breakdown
 const STORE_NAME = 'totals'
-const CACHE_TTL_MS = 15 * 60 * 1000 // 15 minutes
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours (persist across sessions to reduce API quota usage)
 
 export type CachedMedalTotals = {
   year: number

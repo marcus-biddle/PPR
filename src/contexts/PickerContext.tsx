@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from 'react'
 import { getSheetValues, getValuesArray } from '@/api/sheets'
+import { getCached, setCached } from '@/lib/sheetsCache'
 
 const SHEET_NAMES = ['Push', 'Pull', 'Run'] as const
 const NAMES_RANGE = 'E5:Z5'
@@ -40,14 +41,8 @@ function getStoredPicker(): { sheet: SheetName | ''; name: string } {
 
 function getCachedNames(sheet: SheetName | ''): string[] {
   if (!sheet) return []
-  try {
-    const raw = sessionStorage.getItem(NAMES_CACHE_PREFIX + sheet)
-    if (!raw) return []
-    const parsed = JSON.parse(raw) as unknown
-    return Array.isArray(parsed) && parsed.every((x) => typeof x === 'string') ? parsed : []
-  } catch {
-    return []
-  }
+  const cached = getCached<string[]>(NAMES_CACHE_PREFIX + sheet)
+  return Array.isArray(cached) && cached.every((x) => typeof x === 'string') ? cached : []
 }
 
 type PickerContextValue = {
@@ -114,11 +109,7 @@ export function PickerProvider({ children }: { children: ReactNode }) {
           .map((cell) => String(cell ?? '').trim())
           .filter(Boolean)
         namesCacheRef.current[debouncedSheet] = list
-        try {
-          sessionStorage.setItem(NAMES_CACHE_PREFIX + debouncedSheet, JSON.stringify(list))
-        } catch {
-          /* ignore */
-        }
+        setCached(NAMES_CACHE_PREFIX + debouncedSheet, list)
         setNames(list)
         setSelectedName((prev) => (list.includes(prev) ? prev : ''))
       })

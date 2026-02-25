@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { getSheetValuesBatch, getValuesArray } from '@/api/sheets'
+import { getCached, setCached, deleteCached } from '@/lib/sheetsCache'
 import { parseDateCell } from './useNameData'
 import type { SheetName } from '@/contexts/PickerContext'
 
@@ -36,6 +37,12 @@ export async function fetchLeaderboardForMonth(
   const key = cacheKey(sheet, year, month)
   const cached = leaderboardCache.get(key)
   if (cached !== undefined) return cached
+
+  const persisted = getCached<LeaderboardEntry[]>(key)
+  if (persisted != null && Array.isArray(persisted) && persisted.length >= 0) {
+    leaderboardCache.set(key, persisted)
+    return persisted
+  }
 
   const allDateRows: unknown[][] = []
   const allValueRowsByIndex: unknown[][][] = names.map(() => [])
@@ -100,6 +107,7 @@ export async function fetchLeaderboardForMonth(
     .map((e, i) => ({ rank: i + 1, name: e.name, total: e.total }))
 
   leaderboardCache.set(key, entries)
+  setCached(key, entries)
   return entries
 }
 
@@ -115,7 +123,9 @@ export function useLeaderboardData(
   const [refreshTrigger, setRefreshTrigger] = useState(0)
 
   const refresh = useCallback(() => {
-    leaderboardCache.delete(cacheKey(selectedSheet, currentYear, currentMonth))
+    const key = cacheKey(selectedSheet, currentYear, currentMonth)
+    leaderboardCache.delete(key)
+    deleteCached(key)
     setRefreshTrigger((t) => t + 1)
   }, [selectedSheet, currentYear, currentMonth])
 
@@ -130,6 +140,14 @@ export function useLeaderboardData(
     const cached = leaderboardCache.get(key)
     if (cached !== undefined) {
       setLeaderboard(cached)
+      setError(null)
+      setLoading(false)
+      return
+    }
+    const persisted = getCached<LeaderboardEntry[]>(key)
+    if (persisted != null && Array.isArray(persisted)) {
+      leaderboardCache.set(key, persisted)
+      setLeaderboard(persisted)
       setError(null)
       setLoading(false)
       return
@@ -210,6 +228,7 @@ export function useLeaderboardData(
           .map((e, i) => ({ rank: i + 1, name: e.name, total: e.total }))
 
         leaderboardCache.set(key, entries)
+        setCached(key, entries)
         setLeaderboard(entries)
       })
       .catch((e) => {
@@ -227,4 +246,112 @@ export function useLeaderboardData(
   }, [selectedSheet, names, currentYear, currentMonth, refreshTrigger])
 
   return { leaderboard, loading, error, refresh }
+}
+
+/** Merge multiple per-month leaderboards into one by summing totals per name, then re-rank. */
+function mergeLeaderboards(monthlyLeaderboards: LeaderboardEntry[][]): LeaderboardEntry[] {
+  const totalsByName = new Map<string, number>()
+  for (const board of monthlyLeaderboards) {
+    for (const e of board) {
+      totalsByName.set(e.name, (totalsByName.get(e.name) ?? 0) + e.total)
+    }
+  }
+  return Array.from(totalsByName.entries())
+    .map(([name, total]) => ({ name, total }))
+    .sort((a, b) => b.total - a.total)
+    .map((e, i) => ({ rank: i + 1, name: e.name, total: e.total }))
+}
+
+function getQuarterMonths(currentMonth: number): [number, number, number] {
+  const q = Math.ceil(currentMonth / 3)
+  const start = (q - 1) * 3 + 1
+  return [start, start + 1, start + 2]
+}
+
+export function useLeaderboardDataForQuarter(
+  selectedSheet: SheetName | '',
+  names: string[],
+  currentYear: number,
+  currentMonth: number
+): { leaderboard: LeaderboardEntry[]; loading: boolean; error: string | null } {
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!selectedSheet || names.length === 0) {
+      setLeaderboard([])
+      setError(null)
+      return
+    }
+
+    const months = getQuarterMonths(currentMonth)
+    let cancelled = false
+    setError(null)
+    setLoading(true)
+
+    Promise.all(months.map((m) => fetchLeaderboardForMonth(selectedSheet, names, currentYear, m)))
+      .then((boards) => {
+        if (cancelled) return
+        setLeaderboard(mergeLeaderboards(boards))
+      })
+      .catch((e) => {
+        if (cancelled) return
+        setError(e instanceof Error ? e.message : 'Failed to load quarter leaderboard')
+        setLeaderboard([])
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [selectedSheet, names, currentYear, currentMonth])
+
+  return { leaderboard, loading, error }
+}
+
+export function useLeaderboardDataForYear(
+  selectedSheet: SheetName | '',
+  names: string[],
+  currentYear: number,
+  currentMonth: number
+): { leaderboard: LeaderboardEntry[]; loading: boolean; error: string | null } {
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([])
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!selectedSheet || names.length === 0) {
+      setLeaderboard([])
+      setError(null)
+      return
+    }
+
+    const months = Array.from({ length: currentMonth }, (_, i) => i + 1)
+    let cancelled = false
+    setError(null)
+    setLoading(true)
+
+    Promise.all(months.map((m) => fetchLeaderboardForMonth(selectedSheet, names, currentYear, m)))
+      .then((boards) => {
+        if (cancelled) return
+        setLeaderboard(mergeLeaderboards(boards))
+      })
+      .catch((e) => {
+        if (cancelled) return
+        setError(e instanceof Error ? e.message : 'Failed to load year leaderboard')
+        setLeaderboard([])
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [selectedSheet, names, currentYear, currentMonth])
+
+  return { leaderboard, loading, error }
 }

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { getSheetValuesBatch, getValuesArray } from '@/api/sheets'
+import { getCached, setCached } from '@/lib/sheetsCache'
 import type { SheetName } from '@/contexts/PickerContext'
 
 const NAMEDATA_CACHE_PREFIX = 'ppr-namedata-'
@@ -60,23 +61,17 @@ export function filterByDate(
 
 export function getCachedNameData(sheet: SheetName | '', name: string): DateValueRow[] {
   if (!sheet || !name) return []
-  try {
-    const raw = sessionStorage.getItem(NAMEDATA_CACHE_PREFIX + sheet + '|' + name)
-    if (!raw) return []
-    const parsed = JSON.parse(raw) as unknown
-    if (!Array.isArray(parsed)) return []
-    return parsed.filter(
-      (row): row is DateValueRow =>
-        row != null &&
-        typeof row === 'object' &&
-        'date' in row &&
-        'value' in row &&
-        typeof (row as DateValueRow).date === 'string' &&
-        typeof (row as DateValueRow).value === 'string'
-    )
-  } catch {
-    return []
-  }
+  const cached = getCached<DateValueRow[]>(NAMEDATA_CACHE_PREFIX + sheet + '|' + name)
+  if (!cached || !Array.isArray(cached)) return []
+  return cached.filter(
+    (row): row is DateValueRow =>
+      row != null &&
+      typeof row === 'object' &&
+      'date' in row &&
+      'value' in row &&
+      typeof (row as DateValueRow).date === 'string' &&
+      typeof (row as DateValueRow).value === 'string'
+  )
 }
 
 export function useNameData(
@@ -163,14 +158,7 @@ export function useNameData(
           if (date || value) rows.push({ date, value })
         }
         cacheRef.current[cacheKey] = rows
-        try {
-          sessionStorage.setItem(
-            NAMEDATA_CACHE_PREFIX + selectedSheet + '|' + selectedName,
-            JSON.stringify(rows)
-          )
-        } catch {
-          /* ignore */
-        }
+        setCached(NAMEDATA_CACHE_PREFIX + selectedSheet + '|' + selectedName, rows)
         setNameData(rows)
       })
       .catch((e) => {

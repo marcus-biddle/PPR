@@ -12,7 +12,7 @@ import {
 import { Link } from 'react-router-dom'
 import { usePicker } from '@/contexts/PickerContext'
 import { useNameData, filterByDate, parseDateCell } from '@/hooks/useNameData'
-import { useLeaderboardData } from '@/hooks/useLeaderboardData'
+import { useLeaderboardData, useLeaderboardDataForQuarter, useLeaderboardDataForYear } from '@/hooks/useLeaderboardData'
 import { useMedalTotals } from '@/hooks/useMedalTotals'
 import {
   Carousel,
@@ -29,8 +29,97 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Progress } from '@/components/ui/progress'
+import { Crown, Flame, Medal, Trophy } from 'lucide-react'
 
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+
+/** Badge for monthly rank. Matches Medals page "Month to month": Medal (1st & 2nd), text badge (3rd). */
+function MonthlyRankBadge({ rank }: { rank: number }) {
+  if (rank === 1) {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 px-2.5 py-1 text-sm" title="1st place this month">
+        <Medal className="h-4 w-4 shrink-0 text-amber-400" aria-hidden />
+        <span className="font-medium tabular-nums text-amber-400">#{rank}</span>
+        <span className="text-amber-400/90">this month</span>
+      </span>
+    )
+  }
+  if (rank === 2) {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-zinc-400/15 px-2.5 py-1 text-sm" title="2nd place this month">
+        <Medal className="h-4 w-4 shrink-0 text-zinc-300" aria-hidden />
+        <span className="font-medium tabular-nums text-zinc-300">#{rank}</span>
+        <span className="text-zinc-400/90">this month</span>
+      </span>
+    )
+  }
+  if (rank === 3) {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-700/20 px-2.5 py-1 text-sm" title="3rd place this month">
+        <span className="font-medium tabular-nums text-amber-200">#{rank}</span>
+        <span className="text-amber-200/80">this month</span>
+      </span>
+    )
+  }
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full bg-zinc-700/50 px-2.5 py-1 text-sm" title={`Rank #${rank} this month`}>
+      <span className="font-medium tabular-nums text-zinc-400">#{rank}</span>
+      <span className="text-zinc-500">this month</span>
+    </span>
+  )
+}
+
+/** Top-3 badge for quarter or year. Matches Medals page: Quarter = Crown/Trophy, Year = Goat/Flame; 3rd = text badge. */
+function Top3PeriodBadge({
+  rank,
+  periodLabel,
+  period,
+}: {
+  rank: number
+  periodLabel: string
+  period: 'quarter' | 'year'
+}) {
+  if (rank === 1) {
+    return period === 'quarter' ? (
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 px-2.5 py-1 text-sm" title={`1st place ${periodLabel}`}>
+        <Crown className="h-4 w-4 shrink-0 text-amber-400" aria-hidden />
+        <span className="font-medium tabular-nums text-amber-400">#{rank}</span>
+        <span className="text-amber-400/90">{periodLabel}</span>
+      </span>
+    ) : (
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 px-2.5 py-1 text-sm text-amber-400" title={`1st place ${periodLabel} · GOAT`}>
+        <span className="text-sm leading-none shrink-0" aria-hidden>🐐</span>
+        <span className="font-medium tabular-nums">#{rank}</span>
+        <span className="text-amber-400/90">{periodLabel}</span>
+      </span>
+    )
+  }
+  if (rank === 2) {
+    return period === 'quarter' ? (
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-zinc-400/15 px-2.5 py-1 text-sm" title={`2nd place ${periodLabel}`}>
+        <Trophy className="h-4 w-4 shrink-0 text-zinc-300" aria-hidden />
+        <span className="font-medium tabular-nums text-zinc-300">#{rank}</span>
+        <span className="text-zinc-400/90">{periodLabel}</span>
+      </span>
+    ) : (
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-zinc-400/15 px-2.5 py-1 text-sm" title={`2nd place ${periodLabel}`}>
+        <Flame className="h-4 w-4 shrink-0 text-zinc-300" aria-hidden />
+        <span className="font-medium tabular-nums text-zinc-300">#{rank}</span>
+        <span className="text-zinc-400/90">{periodLabel}</span>
+      </span>
+    )
+  }
+  if (rank === 3) {
+    return (
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-700/20 px-2.5 py-1 text-sm" title={`3rd place ${periodLabel}`}>
+        <span className="font-medium tabular-nums text-amber-200">#{rank}</span>
+        <span className="text-amber-200/80">{periodLabel}</span>
+      </span>
+    )
+  }
+  return null
+}
 
 export function HomePage() {
   const { selectedSheet, selectedName, names, SHEET_NAMES, SHEET_DISPLAY_NAMES } = usePicker()
@@ -82,6 +171,34 @@ export function HomePage() {
     const n = Number(row.value)
     return sum + (Number.isNaN(n) ? 0 : n)
   }, 0)
+
+  // Exhaustion: sustainable pace (last year same month, or last month as fallback) vs current pace
+  const lastYearSameMonthData = filterByDate(nameData, currentYear - 1, '', currentMonth)
+  const lastYearSameMonthTotal = lastYearSameMonthData.reduce((sum, row) => {
+    const n = Number(row.value)
+    return sum + (Number.isNaN(n) ? 0 : n)
+  }, 0)
+  const daysInLastYearMonth = new Date(currentYear - 1, currentMonth, 0).getDate()
+  const lastMonthDays = new Date(prevYear, prevMonth, 0).getDate()
+  const sustainableDaily =
+    daysInLastYearMonth > 0 && lastYearSameMonthTotal > 0
+      ? lastYearSameMonthTotal / daysInLastYearMonth
+      : lastMonthDays > 0 && prevMonthTotal > 0
+        ? prevMonthTotal / lastMonthDays
+        : null
+  const sustainableLabel =
+    daysInLastYearMonth > 0 && lastYearSameMonthTotal > 0
+      ? `${MONTH_NAMES[currentMonth - 1]} last year`
+      : lastMonthDays > 0 && prevMonthTotal > 0
+        ? `${MONTH_NAMES[prevMonth - 1]}`
+        : ''
+  const expectedByToday = sustainableDaily != null ? sustainableDaily * daysElapsedThisMonth : null
+  const restDebtDays = expectedByToday != null && sustainableDaily != null && sustainableDaily > 0
+    ? (totalCount - expectedByToday) / sustainableDaily
+    : null
+  const paceVsSustainable = sustainableDaily != null && sustainableDaily > 0
+    ? (dailyAvgThisMonth / sustainableDaily) * 100
+    : null
 
   const chartData = currentMonthData
     .map((row) => {
@@ -143,6 +260,24 @@ export function HomePage() {
     currentYear,
     currentMonth
   )
+  const { leaderboard: quarterLeaderboard } = useLeaderboardDataForQuarter(
+    selectedSheet,
+    names,
+    currentYear,
+    currentMonth
+  )
+  const { leaderboard: yearLeaderboard } = useLeaderboardDataForYear(
+    selectedSheet,
+    names,
+    currentYear,
+    currentMonth
+  )
+  const userRank = selectedName ? leaderboard.find((e) => e.name === selectedName)?.rank : null
+  const userQuarterRank = selectedName ? quarterLeaderboard.find((e) => e.name === selectedName)?.rank ?? null : null
+  const userYearRank = selectedName ? yearLeaderboard.find((e) => e.name === selectedName)?.rank ?? null : null
+  const showQuarterBadge = userQuarterRank != null && userQuarterRank >= 1 && userQuarterRank <= 3
+  const showYearBadge = userYearRank != null && userYearRank >= 1 && userYearRank <= 3
+  const showTop3PeriodBadges = showQuarterBadge || showYearBadge
 
   const [carouselApi, setCarouselApi] = useState<{ scrollTo: (index: number) => void } | null>(null)
   const [dayOfWeekMetric, setDayOfWeekMetric] = useState<'total' | 'average'>('total')
@@ -210,9 +345,6 @@ export function HomePage() {
           <p className="mt-3 text-5xl font-bold tabular-nums tracking-tight text-white sm:text-6xl">
             {loading ? '—' : totalCount.toLocaleString()}
           </p>
-          <p className="mt-1.5 text-sm text-zinc-500">
-            Total count this month
-          </p>
         </div>
         {loading ? (
           <div className="flex shrink-0 items-center gap-2 rounded-xl bg-zinc-900/80 px-4 py-3 text-sm text-zinc-400">
@@ -264,35 +396,80 @@ export function HomePage() {
         ) : null}
       </div>
 
-      {/* Stats — compact Robinhood-style row */}
+      {/* Badges row: monthly rank + quarter/year top-3 */}
+      {(userRank != null || leaderboardLoading || showTop3PeriodBadges) && (
+        <div className="flex flex-wrap items-center gap-2">
+          {userRank != null && <MonthlyRankBadge rank={userRank} />}
+          {leaderboardLoading && userRank == null && selectedName && (
+            <span className="text-sm text-zinc-500">Loading rank…</span>
+          )}
+          {showQuarterBadge && (
+            <Top3PeriodBadge
+              rank={userQuarterRank!}
+              periodLabel={`Q${Math.ceil(currentMonth / 3)} ${currentYear}`}
+              period="quarter"
+            />
+          )}
+          {showYearBadge && (
+            <Top3PeriodBadge rank={userYearRank!} periodLabel={`${currentYear}`} period="year" />
+          )}
+        </div>
+      )}
+
+      {/* Stats — minimal list (consider shadcn Card + Separator for more polish) */}
       {selectedSheet && selectedName && (
-        <div className="rounded-xl bg-white/[0.04] px-3 py-2.5">
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 sm:gap-3">
-            <div className="rounded-lg bg-white/[0.06] px-3 py-2">
-              <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Today</p>
-              <p className="mt-0.5 text-lg font-bold tabular-nums text-[#00C805]">
+        <div className="rounded-lg border border-zinc-800/60 bg-zinc-900/30">
+          <dl className="divide-y divide-zinc-800/60">
+            <div className="flex items-center justify-between px-3 py-2">
+              <dt className="text-xs text-zinc-500">Today&apos;s count</dt>
+              <dd className="text-sm font-medium tabular-nums text-[#00C805]">
                 {loading ? '—' : todayCount !== null ? todayCount.toLocaleString() : '—'}
-              </p>
+              </dd>
             </div>
-            <div className="rounded-lg bg-white/[0.06] px-3 py-2">
-              <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Daily avg</p>
-              <p className="mt-0.5 text-lg font-bold tabular-nums text-white">
-                {loading ? '—' : dailyAvgThisMonth.toLocaleString(undefined, { maximumFractionDigits: 1 })}
-              </p>
-            </div>
-            <div className="rounded-lg bg-white/[0.06] px-3 py-2">
-              <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Same day last yr</p>
-              <p className="mt-0.5 text-lg font-bold tabular-nums text-white">
+            <div className="flex items-center justify-between px-3 py-2">
+              <dt className="text-xs text-zinc-500">Same day last year</dt>
+              <dd className="text-sm font-medium tabular-nums text-zinc-200">
                 {loading ? '—' : lastYearSameDayCount !== null ? lastYearSameDayCount.toLocaleString() : '—'}
-              </p>
+              </dd>
             </div>
-            <div className="rounded-lg bg-white/[0.06] px-3 py-2">
-              <p className="text-[10px] font-medium uppercase tracking-wider text-zinc-500">Avg this date</p>
-              <p className="mt-0.5 text-lg font-bold tabular-nums text-white">
+            <div className="flex items-center justify-between px-3 py-2">
+              <dt className="text-xs text-zinc-500">Avg this date (past years)</dt>
+              <dd className="text-sm font-medium tabular-nums text-zinc-200">
                 {loading ? '—' : avgPreviousYearsSameDay !== null ? avgPreviousYearsSameDay.toLocaleString(undefined, { maximumFractionDigits: 1 }) : '—'}
-              </p>
+              </dd>
             </div>
+            <div className="flex items-center justify-between px-3 py-2">
+              <dt className="text-xs text-zinc-500">Avg/day this month</dt>
+              <dd className="text-sm font-medium tabular-nums text-zinc-200">
+                {loading ? '—' : dailyAvgThisMonth.toLocaleString(undefined, { maximumFractionDigits: 1 })}
+              </dd>
+            </div>
+          </dl>
+        </div>
+      )}
+
+      {/* Exhaustion: pace vs sustainable / rest debt */}
+      {selectedSheet && selectedName && !loading && sustainableDaily != null && sustainableDaily > 0 && (
+        <div className="rounded-lg border border-zinc-800/60 bg-zinc-900/30 px-3 py-3">
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs text-zinc-500">
+              Pace vs {sustainableLabel}
+            </span>
+            <span className="text-xs font-medium tabular-nums text-zinc-300">
+              {paceVsSustainable != null ? `${Math.round(paceVsSustainable)}%` : '—'}
+            </span>
           </div>
+          <Progress
+            value={Math.min(100, paceVsSustainable ?? 0)}
+            className="mt-1.5 h-1.5 min-w-0"
+          />
+          {restDebtDays != null && (
+            <p className={`mt-1 text-[11px] ${restDebtDays >= 0 ? 'text-amber-400/80' : 'text-emerald-400/80'}`}>
+              {restDebtDays >= 0
+                ? `~${Math.round(restDebtDays)} day${Math.round(restDebtDays) === 1 ? '' : 's'} ahead`
+                : `~${Math.round(-restDebtDays)} day${Math.round(-restDebtDays) === 1 ? '' : 's'} below`}
+            </p>
+          )}
         </div>
       )}
 

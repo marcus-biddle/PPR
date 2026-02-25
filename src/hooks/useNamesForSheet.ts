@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { getSheetValues, getValuesArray } from '@/api/sheets'
+import { getCached, setCached } from '@/lib/sheetsCache'
 import type { SheetName } from '@/contexts/PickerContext'
 
 const NAMES_RANGE = 'E5:Z5'
@@ -10,17 +11,10 @@ const namesCache = new Map<string, string[]>()
 export async function fetchNamesForSheet(sheet: SheetName): Promise<string[]> {
   const cached = namesCache.get(sheet)
   if (cached !== undefined) return cached
-  try {
-    const raw = sessionStorage.getItem(NAMES_CACHE_PREFIX + sheet)
-    if (raw) {
-      const parsed = JSON.parse(raw) as unknown
-      if (Array.isArray(parsed) && parsed.every((x) => typeof x === 'string')) {
-        namesCache.set(sheet, parsed)
-        return parsed
-      }
-    }
-  } catch {
-    /* ignore */
+  const persisted = getCached<string[]>(NAMES_CACHE_PREFIX + sheet)
+  if (Array.isArray(persisted) && persisted.every((x) => typeof x === 'string')) {
+    namesCache.set(sheet, persisted)
+    return persisted
   }
   const rangeA1 = `'${sheet}'!${NAMES_RANGE}`
   const res = await getSheetValues(rangeA1)
@@ -30,11 +24,7 @@ export async function fetchNamesForSheet(sheet: SheetName): Promise<string[]> {
     .map((cell) => String(cell ?? '').trim())
     .filter(Boolean)
   namesCache.set(sheet, list)
-  try {
-    sessionStorage.setItem(NAMES_CACHE_PREFIX + sheet, JSON.stringify(list))
-  } catch {
-    /* ignore */
-  }
+  setCached(NAMES_CACHE_PREFIX + sheet, list)
   return list
 }
 
@@ -59,6 +49,13 @@ export function useNamesForSheet(sheet: SheetName | ''): {
       setError(null)
       return
     }
+    const persisted = getCached<string[]>(NAMES_CACHE_PREFIX + sheet)
+    if (Array.isArray(persisted) && persisted.every((x) => typeof x === 'string')) {
+      namesCache.set(sheet, persisted)
+      setNames(persisted)
+      setError(null)
+      return
+    }
 
     let cancelled = false
     setError(null)
@@ -74,11 +71,7 @@ export function useNamesForSheet(sheet: SheetName | ''): {
           .map((cell) => String(cell ?? '').trim())
           .filter(Boolean)
         namesCache.set(sheet, list)
-        try {
-          sessionStorage.setItem(NAMES_CACHE_PREFIX + sheet, JSON.stringify(list))
-        } catch {
-          /* ignore */
-        }
+        setCached(NAMES_CACHE_PREFIX + sheet, list)
         setNames(list)
       })
       .catch((e) => {
